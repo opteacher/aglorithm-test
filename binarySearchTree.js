@@ -9,6 +9,11 @@ function Node(value, left, right) {
 	this.right = right || null
 }
 
+/***
+ * 构建二叉检索树
+ * @param array
+ * @constructor
+ */
 function BinarySearchTreeBuilder(array) {
 	if (this.root === undefined) {
 		this.root = new Node(array[0])
@@ -18,7 +23,7 @@ function BinarySearchTreeBuilder(array) {
 		this.compare(this.root, array[i])
 	}
 
-	// this.print(this.root)
+	this.print(this.root)
 }
 
 BinarySearchTreeBuilder.prototype.print = function(node) {
@@ -47,6 +52,12 @@ BinarySearchTreeBuilder.prototype.compare = function(node, item) {
 	}
 }
 
+/***
+ * 用构建好的二叉检索树查找，快的不得了~
+ * @param node
+ * @param target
+ * @returns {*}
+ */
 function search(node, target) {
 	if (Math.abs(node.value - target) < 1) {
 		return node.id
@@ -58,7 +69,7 @@ function search(node, target) {
 	}
 }
 
-let origin = genDisorderList(999999)
+let origin = genDisorderList(200)
 let tree = new BinarySearchTreeBuilder(origin)
 let target = origin[Math.ceil(Math.random() * origin.length) - 1]
 console.log(`搜寻目标：${target}`)
