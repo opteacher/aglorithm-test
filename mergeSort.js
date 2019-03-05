@@ -1,3 +1,5 @@
+let {genDisorderList} = require("./tools")
+
 /***
  * 合并排序
  * @param array
@@ -51,14 +53,6 @@ function sort(array) {
 		array = sort(a)
 	}
 	return array
-}
-
-function genDisorderList(size) {
-	let ret = []
-	for (let i = 0; i < size; i++) {
-		ret.push(Math.random() * 100)
-	}
-	return ret
 }
 
 let origin = genDisorderList(2000000)
