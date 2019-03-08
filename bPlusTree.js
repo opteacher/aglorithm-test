@@ -1,6 +1,6 @@
-let {genDisorderList} = require("./tools")
+const Stack = require("stackjs")
+const {genDisorderList} = require("./tools")
 
-var uuid = 0
 const RED_NODE = "red node"
 const BLACK_NODE = "black node"
 
@@ -10,18 +10,20 @@ function Node(value, parent, left, right) {
 	this.parent = parent
 	this.left = left
 	this.right = right
+	this.used = false
 }
 
-const NIL_NODE = new Node(0)
+const NIL_NODE = new Node(Number.MAX_SAFE_INTEGER)
 NIL_NODE.parent = NIL_NODE
 NIL_NODE.left = NIL_NODE
 NIL_NODE.right = NIL_NODE
 NIL_NODE.color = BLACK_NODE
 
 function Leaf(node, next) {
+	node.used = true
+	node.leaf = this
 	this.value = node.cond
-	this.id = (uuid++)
-	this.next = next || null
+	this.next = next
 }
 
 /***
@@ -30,18 +32,32 @@ function Leaf(node, next) {
  * @constructor
  */
 function BPlusTreeBuilder(array) {
-	if (this.root === undefined) {
+	if (!this.root) {
 		this.root = new Node(array[0], NIL_NODE, NIL_NODE, NIL_NODE)
 		this.root.color = BLACK_NODE
+	}
+	if (!this.leaves) {
+		this.leaves = null
 	}
 
 	for (let i = 1; i < array.length; i++) {
 		this.buildBalanceTree(this.root, array[i])
 	}
 	this.root.color = BLACK_NODE
-	// this.genLeaf()
+	this.leafPoint = null
+	this.toBPlusTree()
+	process.stdout.write("B+树：")
 	this.print(this.root)
-	console.log(this.sortedList(this.root).map(item => item.cond))
+
+	console.log("叶子：[")
+	let numLeaves = 0
+	for (let leaf = this.leaves; leaf; leaf = leaf.next) {
+		console.log(`\t${leaf.value},`)
+		numLeaves++
+	}
+	process.stdout.write("]")
+	console.log()
+	console.log(`总有叶子数：${numLeaves}`)
 }
 
 /***
@@ -103,6 +119,11 @@ BPlusTreeBuilder.prototype.toBalance = function(node) {
 		grandFather.color = RED_NODE
 		this.toBalance(grandFather)
 	} else if (uncle.color === BLACK_NODE) {
+		/* grandfather
+		      /
+		  father
+		   /
+		node */
 		if (node === father.left && father === grandFather.left) {
 			this.rotateRight(grandFather)
 			father.color = BLACK_NODE
@@ -110,32 +131,46 @@ BPlusTreeBuilder.prototype.toBalance = function(node) {
 			if (gfIsRoot) {
 				this.root = father
 			}
-		} else if (node === father.right && father === grandFather.right) {
+		}
+		/* grandfather
+		       \
+	         father
+	            \
+	           node */
+		if (node === father.right && father === grandFather.right) {
 			this.rotateLeft(grandFather)
 			father.color = BLACK_NODE
 			grandFather.color = RED_NODE
 			if (gfIsRoot) {
 				this.root = father
 			}
-		} else if (node === father.left && father === grandFather.right) {
+		}
+		/* grandfather
+		       \
+	         father
+	           /
+	        node */
+		if (node === father.left && father === grandFather.right) {
 			this.rotateRight(father)
+			node.color = BLACK_NODE
+			grandFather.color = RED_NODE
 			this.rotateLeft(grandFather)
-			grandFather.color = RED_NODE
-			father.color = BLACK_NODE
 			if (gfIsRoot) {
 				this.root = node
-			} else {
-				this.toBalance(node)
 			}
-		} else if (node === father.right && father === grandFather.left) {
+		}
+		/* grandfather
+		      /
+		  father
+		     \
+		    node */
+		if (node === father.right && father === grandFather.left) {
 			this.rotateLeft(father)
-			this.rotateRight(grandFather)
+			node.color = BLACK_NODE
 			grandFather.color = RED_NODE
-			father.color = BLACK_NODE
+			this.rotateRight(grandFather)
 			if (gfIsRoot) {
 				this.root = node
-			} else {
-				this.toBalance(node)
 			}
 		}
 	}
@@ -201,29 +236,49 @@ BPlusTreeBuilder.prototype.rotateRight = function(node) {
 	t.right = node
 }
 
-BPlusTreeBuilder.prototype.genLeaf = function() {
-	let list = this.sortedList(this.root)
-	let preLeaf = null
-	for (let i = 0; i < list.length; i++) {
-		let node = list[i]
-		if (!node.left && !node.right) {
-			let leftParent = this.searchFirstParent(node, LEFT_SIDE)
-			if (leftParent) {
-				node.left = new Leaf(leftParent)
-				if (preLeaf) {
-					preLeaf.next = node.left
-					preLeaf = preLeaf.next
+/***
+ * 将整理出来的红黑树转化成B+树
+ * * 所有的准叶子节点的左右子节点变为与之最邻近节点
+ * > 其实就是找对应（左对左、右对右）最近的节点，
+ * > 比如该准叶子节点的左孩子，就是其向上追溯（包括它自己）最近的左孩子节点
+ * @param node
+ */
+BPlusTreeBuilder.prototype.toBPlusTree = function(node = this.root) {
+	if (node.left === NIL_NODE && node.right === NIL_NODE) {
+		let root = this.root
+		/***
+		 * 从当前节点开始找最小的未使用节点
+		 * @param nd
+		 */
+		let findMinLeaf = function (nd) {
+			let minNode = NIL_NODE
+			while (nd !== NIL_NODE) {
+				if (!nd.used) {
+					if (nd.cond < minNode.cond) {
+						minNode = nd
+					}
 				}
+				nd = nd.parent
 			}
-			let rightParent = this.searchFirstParent(node, RIGHT_SIDE)
-			if (rightParent) {
-				node.right = new Leaf(rightParent)
-				if (preLeaf) {
-					preLeaf.next = node.right
-					preLeaf = preLeaf.next
-				}
-			}
+			minNode.used = true
+			return new Leaf(minNode)
 		}
+		node.left = findMinLeaf(node)
+		if (!this.leaves) {
+			this.leaves = node.left
+		} else if (this.leafPoint) {
+			this.leafPoint.next = node.left
+		}
+		node.right = findMinLeaf(node)
+		node.left.next = node.right
+		this.leafPoint = node.right
+		return
+	}
+	if (node.left !== NIL_NODE) {
+		this.toBPlusTree(node.left)
+	}
+	if (node.right !== NIL_NODE) {
+		this.toBPlusTree(node.right)
 	}
 }
 
@@ -240,19 +295,17 @@ BPlusTreeBuilder.prototype.sortedList = function(node, list = null) {
 }
 
 BPlusTreeBuilder.prototype.print = function (node, blk = 0) {
-
 	if (node instanceof Node) {
-		if (node !== NIL_NODE) {
-			for (let i = 0; i < blk; i++) {
-				process.stdout.write("\t")
-			}
-			console.log(`|-<${node.cond}(${node.color})`)
+		for (let i = 0; i < blk; i++) {
+			process.stdout.write("\t")
 		}
+		console.log(`|-<${node.cond}(${node.color})`)
 	} else {
 		for (let i = 0; i < blk; i++) {
 			process.stdout.write("\t")
 		}
-		console.log(`|-${node.value}`)
+		console.log(`|-*${node.value}(leaf)`)
+		return
 	}
 	if (node.left !== NIL_NODE) {
 		this.print(node.left, blk + 1)
@@ -262,6 +315,61 @@ BPlusTreeBuilder.prototype.print = function (node, blk = 0) {
 	}
 }
 
+BPlusTreeBuilder.prototype.rangeSearch = function (min, max) {
+	function isNode(node) {
+		return node instanceof Node && node !== NIL_NODE
+	}
+	let minNode = (function (node) {
+		let stack = new Stack()
+		while (isNode(node) || !stack.isEmpty()) {
+			while (isNode(node)) {
+				stack.push(node)
+				node = node.left
+			}
+			if (!stack.isEmpty()) {
+				node = stack.pop()
+				if (min < node.cond) {
+					return node
+				}
+				node = node.right
+			}
+		}
+	})(this.root)
+	let maxNode = (function (node) {
+		let stack = new Stack()
+		while (isNode(node) || !stack.isEmpty()) {
+			while (isNode(node)) {
+				stack.push(node)
+				node = node.right
+			}
+			if (!stack.isEmpty()) {
+				node = stack.pop()
+				if (max > node.cond) {
+					return node
+				}
+				node = node.left
+			}
+		}
+	})(this.root)
+	let ret = []
+	for (let p = minNode.leaf; p.value <= maxNode.leaf.value; p = p.next) {
+		ret.push(p.value)
+	}
+	return ret
+}
+
 let origin = genDisorderList(10)
+process.stdout.write("原始数组：")
 console.log(origin)
 let tree = new BPlusTreeBuilder(origin)
+let min = Math.min(...origin)
+let max = Math.max(...origin)
+let rand1 = Math.random() * (max - min) + min
+let rand2 = Math.random() * (max - min) + min
+min = Math.min(rand1, rand2)
+max = Math.max(rand1, rand2)
+console.log(`搜索范围大于：${min}`)
+console.log(`搜索范围小于：${max}`)
+let begTime = Date.now()
+console.log(`搜索结果：${tree.rangeSearch(min, max)}`)
+console.log(`耗时：${Date.now() - begTime}`)

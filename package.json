@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/opteacher/aglorithm-test#readme",
   "dependencies": {
-    "electron": "^4.0.7"
+    "electron": "^4.0.7",
+    "stackjs": "^0.1.0"
   }
 }
