@@ -38,8 +38,10 @@ function BPlusTreeBuilder(array) {
 	for (let i = 1; i < array.length; i++) {
 		this.buildBalanceTree(this.root, array[i])
 	}
+	this.root.color = BLACK_NODE
 	// this.genLeaf()
 	this.print(this.root)
+	console.log(this.sortedList(this.root).map(item => item.cond))
 }
 
 /***
@@ -118,21 +120,23 @@ BPlusTreeBuilder.prototype.toBalance = function(node) {
 		} else if (node === father.left && father === grandFather.right) {
 			this.rotateRight(father)
 			this.rotateLeft(grandFather)
-			grandFather.color = BLACK_NODE
+			grandFather.color = RED_NODE
 			father.color = BLACK_NODE
 			if (gfIsRoot) {
 				this.root = node
+			} else {
+				this.toBalance(node)
 			}
-			this.toBalance(node)
 		} else if (node === father.right && father === grandFather.left) {
 			this.rotateLeft(father)
 			this.rotateRight(grandFather)
-			grandFather.color = BLACK_NODE
+			grandFather.color = RED_NODE
 			father.color = BLACK_NODE
 			if (gfIsRoot) {
 				this.root = node
+			} else {
+				this.toBalance(node)
 			}
-			this.toBalance(node)
 		}
 	}
 }
@@ -153,19 +157,18 @@ BPlusTreeBuilder.prototype.rotateLeft = function(node) {
 	// 对于node
 	node.parent = t
 	node.right = t.left
+	t.left.parent = node
 
 	// 对于t
 	t.parent = parent
-	t.left = node
-
-	// 对于parent
-	if (parent && parent !== NIL_NODE) {
+	if (parent !== NIL_NODE) {
 		if (parent.left === node) {
 			parent.left = t
 		} else {
 			parent.right = t
 		}
 	}
+	t.left = node
 }
 
 /***
@@ -184,19 +187,18 @@ BPlusTreeBuilder.prototype.rotateRight = function(node) {
 	// 对于node
 	node.parent = t
 	node.left = t.right
+	t.right.parent = node
 
 	//对于t
 	t.parent = parent
-	t.right = node
-
-	// 对于parent
-	if (parent && parent !== NIL_NODE) {
+	if (parent !== NIL_NODE) {
 		if (parent.left === node) {
 			parent.left = t
 		} else {
 			parent.right = t
 		}
 	}
+	t.right = node
 }
 
 BPlusTreeBuilder.prototype.genLeaf = function() {
@@ -227,11 +229,11 @@ BPlusTreeBuilder.prototype.genLeaf = function() {
 
 BPlusTreeBuilder.prototype.sortedList = function(node, list = null) {
 	list = list || []
-	if (node.left) {
+	if (node.left !== NIL_NODE) {
 		this.sortedList(node.left, list)
 	}
 	list.push(node)
-	if (node.right) {
+	if (node.right !== NIL_NODE) {
 		this.sortedList(node.right, list)
 	}
 	return list
