@@ -1,4 +1,3 @@
-const Stack = require("stackjs")
 const {genDisorderList} = require("./tools")
 
 function Node(value, index, parent) {
