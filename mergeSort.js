@@ -55,8 +55,7 @@ function sort(array) {
 	return array
 }
 
-let origin = genDisorderList(2000000)
-console.log(`排序总量: ${origin.length}`)
+let origin = genDisorderList(100000)
 let begTime = Date.now()
 let result = sort(origin)
 console.log(`耗时：${Date.now() - begTime}`)
