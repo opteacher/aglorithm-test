@@ -1,135 +1,101 @@
 const Stack = require("stackjs")
 const {genDisorderList} = require("./tools")
 
-function Node(value, parent) {
+function Node(value, index, parent) {
+	this.index = index
 	this.value = value
 	this.left = null
 	this.right = null
 	this.parent = parent
-	if (!parent) {
-		this.next = this.left
-	} else {
-		this.next = null
-	}
 }
 
 function sort(array) {
 	// 初始化堆树
 	let begTime = Date.now()
-	let root = initHeapTree(array)
+	initHeapTree(array)
 	console.log(`初始化耗时：${Date.now() - begTime}`)
 	// 调整堆树：从左叶子节点开始，调整每个子树，要求父节点一定大于子节点
 	begTime = Date.now()
-	adjustHeapTree(root)
+	adjustHeapTree(array)
 	console.log(`调整耗时：${Date.now() - begTime}`)
-	// printTree(root)
 	// 堆排序
 	begTime = Date.now()
-	let ret = sortHeapTree(root)
+	let ret = sortHeapTree(array)
 	console.log(`排序耗时：${Date.now() - begTime}`)
 	return ret
 }
 
 function initHeapTree(array) {
-	let root = null
-	let preRight = null
-	for (let item of array) {
-		if (!root) {
-			root = new Node(item)
-			preRight = root
+	for (let i = 0; i < array.length; i++) {
+		if (!(array[i] instanceof Node)) {
+			array[i] = new Node(array[i], i)
+		}
+		let lftIdx = 2*i + 1
+		if (lftIdx < array.length) {
+			array[lftIdx] = new Node(array[lftIdx], lftIdx, array[i])
+			array[i].left = array[lftIdx]
+		}
+		let rgtIdx = lftIdx + 1
+		if (rgtIdx < array.length) {
+			array[rgtIdx] = new Node(array[rgtIdx], rgtIdx, array[i])
+			array[i].right = array[rgtIdx]
+		}
+	}
+}
+
+function adjustHeapTree(array) {
+	let hftIdx = array.length/2
+	if (!Number.isInteger(hftIdx)) {
+		hftIdx = Math.ceil(hftIdx) - 1
+	}
+	for (let i = hftIdx; i >= 0; i--) {
+		maxHeapify(array, i)
+	}
+}
+
+function maxHeapify(array, i) {
+	while (true) {
+		let node = array[i]
+		let left = node.left
+		let right = node.right
+		if (!left && !right) {
+			break
+		}
+		let maxIdx = i
+		if (left && left.value > node.value) {
+			swapNodeValue(node, left)
+			maxIdx = left.index
+		}
+		if (right && right.value > node.value) {
+			swapNodeValue(node, right)
+			maxIdx = right.index
+		}
+		if (maxIdx !== i) {
+			i = maxIdx
 		} else {
-			for (let node = root; node; node = node.next) {
-				if (!node.left) {
-					node.left = new Node(item, node)
-					preRight.next = node.left
-					break
-				} else if (!node.right) {
-					node.right = new Node(item, node)
-					node.left.next = node.right
-					preRight = node.right
-					break
-				}
-			}
-		}
-	}
-	return root
-}
-
-function adjustHeapTree(root, valid = true) {
-	let node = root
-	let stack = new Stack()
-	function FatherNode(node) {
-		this.node = node
-		this.first = true
-	}
-	while (node || !stack.isEmpty()) {
-		while (node) {
-			stack.push(new FatherNode(node))
-			node = node.left
-		}
-		if (!stack.isEmpty()) {
-			let tmp = stack.pop()
-			if (tmp.first) {
-				tmp.first = false
-				stack.push(tmp)
-				node = tmp.node.right
-			} else {
-				let father = tmp.node
-				if (father.left && father.left.value > father.value) {
-					swapNodeValue(father, father.left)
-					valid && validSwap(father.left)
-				}
-				if (father.right && father.right.value > father.value) {
-					swapNodeValue(father, father.right)
-					valid && validSwap(father.right)
-				}
-				node = null
-			}
+			break
 		}
 	}
 }
 
-function validSwap(node) {
-	if (!node) {
-		return
-	}
-	if (node.left && node.value < node.left.value) {
-		swapNodeValue(node, node.left)
-	}
-	if (node.right && node.value < node.right.value) {
-		swapNodeValue(node, node.right)
-	}
-	validSwap(node.left)
-	validSwap(node.right)
-}
-
-function sortHeapTree(root) {
-	let ret = []
-	let count = 0
-	while (root.next) {
-		ret.push(root.value)
-		if (root.left && root.right) {
-			if (root.left.value < root.right.value) {
-				swapNodeValue(root.left, root.right)
-			}
+function sortHeapTree(array) {
+	for (let i = array.length - 1; i >= 0; i--) {
+		if (i === 0) {
+			array[0] = array[0].value
+			break
 		}
-		for (let node = root; node.next; node = node.next) {
-			node.value = node.next.value
-			if (!node.next.next) {
-				let delNode = node.next
-				node.next = null
-				let delParent = delNode.parent
-				if (delParent.left === delNode) {
-					delParent.left = null
-				} else {
-					delParent.right = null
-				}
-				break
-			}
+		swapNodeValue(array[0], array[i])
+		let node = array[i]
+		let parent = node.parent
+		if (parent.left === node) {
+			parent.left = null
+		} else {
+			parent.right = null
 		}
+		array[i] = array[i].value
+		maxHeapify(array, 0)
 	}
-	ret.push(root.value)
-	return ret
+	return array
 }
 
 function swapNodeValue(node1, node2) {
@@ -151,8 +117,8 @@ function printTree(node, blk = 0) {
 	}
 }
 
-let origin = genDisorderList(10)
+let origin = genDisorderList(100000)
 // console.log(origin)
 let begTime = Date.now()
-console.log(sort(origin))
+sort(origin)
 console.log(`耗时：${Date.now() - begTime}`)
