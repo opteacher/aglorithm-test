@@ -34,7 +34,7 @@ function swap(array, index1, index2) {
 	array[index1] -= array[index2]
 }
 
-let origin = genDisorderList(100000)
+let origin = genDisorderList(1000000)
 // console.log(origin)
 let begTime = Date.now()
 sort(origin)

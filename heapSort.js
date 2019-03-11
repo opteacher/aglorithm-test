@@ -116,7 +116,7 @@ function printTree(node, blk = 0) {
 	}
 }
 
-let origin = genDisorderList(100000)
+let origin = genDisorderList(1000000)
 // console.log(origin)
 let begTime = Date.now()
 sort(origin)
